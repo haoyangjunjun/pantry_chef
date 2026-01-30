@@ -3,64 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PantryChef v7</title>
+    <title>PantryChef v9.1 (Fix)</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5; --primary-bg: #e0e7ff;
             --bg-body: #f8fafc; --bg-surface: #ffffff;
             --border: #e2e8f0; --text: #1e293b; --text-sub: #64748b;
-            --success: #10b981; --danger: #ef4444;
+            --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
             --r-s: 6px; --r-m: 8px; --r-l: 12px;
         }
         * { box-sizing: border-box; outline: none; }
         body { margin: 0; height: 100vh; font-family: -apple-system, sans-serif; background: var(--bg-body); color: var(--text); display: flex; flex-direction: column; overflow: hidden; font-size: 14px; }
-        .btn { padding: 8px 16px; border-radius: var(--r-m); border: 1px solid var(--border); background: #fff; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.1s; color: var(--text); }
-        .btn:hover { background: #f1f5f9; }
+        
+        /* UI Kit */
+        .btn { padding: 8px 16px; border-radius: var(--r-m); border: 1px solid var(--border); background: #fff; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.15s; color: var(--text); }
+        .btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
         .btn-primary:hover { background: #4338ca; }
         .btn-danger { color: var(--danger); border-color: #fecaca; }
+        .btn-danger:hover { background: #fee2e2; }
         .btn-toggle { color: var(--text-sub); border-color: var(--border); }
         .btn-toggle.active { background: var(--success); color: white; border-color: var(--success); }
-        input, textarea, select { padding: 9px; border: 1px solid var(--border); border-radius: var(--r-m); width: 100%; font-family: inherit; background: #fff; }
+        
+        input, textarea, select { padding: 9px; border: 1px solid var(--border); border-radius: var(--r-m); width: 100%; font-family: inherit; background: #fff; transition: 0.2s; }
         input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-bg); }
+        
+        /* Custom Color Picker */
+        .color-picker-wrapper { position: relative; width: 40px; height: 38px; }
+        .color-picker-input { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2; }
+        .color-picker-swatch { 
+            width: 100%; height: 100%; border-radius: var(--r-m); border: 1px solid var(--border);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s;
+        }
+        .color-picker-wrapper:hover .color-picker-swatch { transform: scale(1.05); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* Layout */
         header { height: 56px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; flex-shrink: 0; }
         .brand { font-weight: 700; font-size: 1.2rem; color: var(--primary); }
         main { flex: 1; display: grid; grid-template-columns: 350px 1fr; gap: 1px; background: var(--border); overflow: hidden; }
         .panel { background: var(--bg-body); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
         .panel-head { padding: 12px 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .panel-body { flex: 1; overflow-y: auto; padding: 15px; }
+
+        /* Inventory Items */
         .inv-item { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-m); padding: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .inv-item:hover { border-color: #cbd5e1; }
         .inv-emoji { font-size: 1.8rem; width: 40px; text-align: center; }
         .inv-info { flex: 1; }
         .tag { padding: 2px 8px; border-radius: var(--r-s); font-size: 0.8rem; border: 1px solid transparent; display: inline-block; }
         .inv-ctrl { display: flex; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--r-s); }
         .btn-qty { border: none; background: transparent; width: 28px; height: 28px; cursor: pointer; font-weight: bold; color: var(--text-sub); }
         .inv-val { font-weight: 700; min-width: 32px; text-align: center; line-height: 28px; font-size: 0.95rem; }
+
+        /* Recipe Grid */
         .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
         .recipe-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-m); padding: 15px; cursor: pointer; transition: 0.1s; display: flex; flex-direction: column; gap: 8px; }
         .recipe-card.cookable { border-left: 4px solid var(--success); background: #f0fdf4; }
         .rc-head { display: flex; gap: 12px; align-items: flex-start; }
         .rc-icon { width: 44px; height: 44px; background: #f8fafc; border-radius: var(--r-s); display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 1px solid var(--border); }
+
+        /* Common Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal-overlay.open { display: flex; }
         .modal { background: #fff; width: 650px; max-width: 95%; max-height: 90vh; border-radius: var(--r-l); display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         .modal-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 20px; overflow-y: auto; background: #f8fafc; flex: 1; }
         .modal-foot { padding: 15px; border-top: 1px solid var(--border); background: #fff; text-align: right; }
+
+        /* Archive List Rows */
+        .list-row { 
+            display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; align-items:center; background: #fff; transition: 0.1s;
+        }
+        .list-row:first-child { border-top-left-radius: var(--r-m); border-top-right-radius: var(--r-m); }
+        .list-row:last-child { border-bottom: none; border-bottom-left-radius: var(--r-m); border-bottom-right-radius: var(--r-m); }
+        .list-row:hover { background: #f1f5f9; }
+        
+        .row-actions { display: flex; gap: 8px; opacity: 0.4; transition: 0.2s; }
+        .list-row:hover .row-actions { opacity: 1; }
+
+        /* Tabs */
         .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
         .tab { padding: 6px 12px; border-radius: var(--r-s); cursor: pointer; color: var(--text-sub); }
         .tab.active { background: var(--primary-bg); color: var(--primary); font-weight: 700; }
+
+        /* Selectors */
         .sel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 8px; }
         .sel-card { border: 1px solid var(--border); border-radius: var(--r-m); padding: 8px; background: #fff; cursor: pointer; text-align: center; }
         .sel-card.selected { border-color: var(--primary); background: #f0fdf4; }
         .req-btn { width:100%; font-size:0.75rem; margin-top:5px; padding:2px; cursor:pointer; border-radius:4px; border:1px solid transparent; }
         .req-btn.is-req { background:#fef3c7; color:#b45309; }
         .req-btn.is-opt { background:#f1f5f9; color:#64748b; }
+
+        /* Stock Number Input Clean */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
         @media (max-width: 768px) {
             main { grid-template-columns: 1fr; }
             .panel { height: auto; min-height: 50vh; }
             body { overflow-y: auto; }
+            .row-actions { opacity: 1; }
         }
     </style>
 </head>
@@ -69,7 +112,7 @@
 <header>
     <div class="brand">🥗 PantryChef</div>
     <div style="display:flex; gap:10px">
-        <button class="btn" onclick="openArchive()">📁 档案</button>
+        <button class="btn" onclick="openArchive()">📁 档案管理</button>
         <button class="btn" onclick="location.reload()">🔄 刷新</button>
     </div>
 </header>
@@ -135,22 +178,90 @@
                 <div class="tab" onclick="switchTab('cat')" id="tab-cat">分类</div>
                 <div class="tab" onclick="switchTab('rtag')" id="tab-rtag">标签</div>
             </div>
+            
+            <!-- Views -->
             <div id="view-ing">
-                <div style="display:flex; gap:5px; margin-bottom:10px">
-                    <input id="n-i-emoji" placeholder="Emoji" style="width:50px;text-align:center">
-                    <input id="n-i-name" placeholder="名称" style="flex:1">
+                <!-- Add Bar -->
+                <div style="display:flex; gap:8px; margin-bottom:15px; background:#e0e7ff; padding:12px; border-radius:var(--r-m);">
+                    <input id="n-i-emoji" placeholder="Emoji" style="width:50px; text-align:center">
+                    <input id="n-i-name" placeholder="名称" style="flex:2">
                     <input id="n-i-unit" placeholder="单位" style="width:60px">
                     <select id="n-i-cat" style="width:100px"></select>
                     <button class="btn btn-primary" onclick="addMeta('ingredient')">添加</button>
                 </div>
-                <div id="list-ing"></div>
+                <!-- List -->
+                <div id="list-ing" style="border:1px solid var(--border); border-radius:var(--r-m);"></div>
             </div>
+
             <div id="view-cat" style="display:none">
-                <div style="display:flex; gap:5px; margin-bottom:10px"><input type="color" id="n-c-color" value="#64748b" style="width:40px"><input id="n-c-name" placeholder="分类名称"><button class="btn btn-primary" onclick="addMeta('category')">添加</button></div><div id="list-cat"></div>
+                <!-- Add Bar -->
+                <div style="display:flex; gap:8px; margin-bottom:15px; background:#e0e7ff; padding:12px; border-radius:var(--r-m);">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="n-c-color" value="#64748b" class="color-picker-input" oninput="this.nextElementSibling.style.background=this.value">
+                        <div class="color-picker-swatch" style="background:#64748b"></div>
+                    </div>
+                    <input id="n-c-name" placeholder="分类名称" style="flex:1">
+                    <button class="btn btn-primary" onclick="addMeta('category')">添加</button>
+                </div>
+                <!-- List -->
+                <div id="list-cat" style="border:1px solid var(--border); border-radius:var(--r-m);"></div>
             </div>
+
             <div id="view-rtag" style="display:none">
-                <div style="display:flex; gap:5px; margin-bottom:10px"><input type="color" id="n-r-color" value="#f59e0b" style="width:40px"><input id="n-r-name" placeholder="标签名称"><button class="btn btn-primary" onclick="addMeta('recipeTag')">添加</button></div><div id="list-rtag"></div>
+                <!-- Add Bar -->
+                <div style="display:flex; gap:8px; margin-bottom:15px; background:#e0e7ff; padding:12px; border-radius:var(--r-m);">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="n-r-color" value="#f59e0b" class="color-picker-input" oninput="this.nextElementSibling.style.background=this.value">
+                        <div class="color-picker-swatch" style="background:#f59e0b"></div>
+                    </div>
+                    <input id="n-r-name" placeholder="标签名称" style="flex:1">
+                    <button class="btn btn-primary" onclick="addMeta('recipeTag')">添加</button>
+                </div>
+                <!-- List -->
+                <div id="list-rtag" style="border:1px solid var(--border); border-radius:var(--r-m);"></div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Ingredient Modal -->
+<div class="modal-overlay" id="modal-edit-ing">
+    <div class="modal" style="width:400px; height:auto">
+        <div class="modal-head"><h3>修改食材</h3><button class="btn" onclick="closeModal('modal-edit-ing')">✕</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="edit-i-id">
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <input id="edit-i-emoji" style="width:60px; text-align:center">
+                <input id="edit-i-name" style="flex:1">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <input id="edit-i-unit" style="width:80px">
+                <select id="edit-i-cat" style="flex:1"></select>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-primary" style="width:100%" onclick="updateMeta('ingredient')">保存修改</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Category/Tag Modal -->
+<div class="modal-overlay" id="modal-edit-tag">
+    <div class="modal" style="width:400px; height:auto">
+        <div class="modal-head"><h3 id="edit-tag-title">修改</h3><button class="btn" onclick="closeModal('modal-edit-tag')">✕</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="edit-tag-id">
+            <input type="hidden" id="edit-tag-type">
+            <div style="display:flex; gap:10px; align-items:center;">
+                <div class="color-picker-wrapper">
+                    <input type="color" id="edit-tag-color" class="color-picker-input" oninput="this.nextElementSibling.style.background=this.value">
+                    <div class="color-picker-swatch" id="edit-tag-swatch"></div>
+                </div>
+                <input id="edit-tag-name" style="flex:1">
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-primary" style="width:100%" onclick="updateMeta('tag')">保存修改</button>
         </div>
     </div>
 </div>
@@ -161,10 +272,10 @@
         <div class="modal-head"><h3 id="st-name"></h3><button class="btn" onclick="closeModal('modal-stock')">✕</button></div>
         <div class="modal-body" style="text-align:center">
             <input type="hidden" id="st-id">
-            <div style="display:flex; gap:10px; margin-bottom:15px">
-                <button class="btn" style="flex:1;font-size:1.2rem" onclick="adjStock(-1)">-</button>
-                <input id="st-qty" readonly style="text-align:center;font-size:1.2rem;font-weight:bold">
-                <button class="btn" style="flex:1;font-size:1.2rem" onclick="adjStock(1)">+</button>
+            <div style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
+                <button class="btn" style="width:40px;height:40px;font-size:1.2rem" onclick="adjStock(-1)">-</button>
+                <input type="number" id="st-qty" style="flex:1; text-align:center;font-size:1.8rem;font-weight:bold;height:50px;border:2px solid var(--border);">
+                <button class="btn" style="width:40px;height:40px;font-size:1.2rem" onclick="adjStock(1)">+</button>
             </div>
             <button class="btn btn-primary" style="width:100%" onclick="saveStock()">确认</button>
         </div>
@@ -175,23 +286,23 @@
     let db = {};
     let filterActive = false;
 
-    // API & Data
+    // API
     async function loadData() {
         try {
             const res = await fetch('/api/data');
             db = await res.json();
             renderAll();
-        } catch(e) { console.error("Data load failed", e); }
+        } catch(e) { console.error(e); }
     }
     async function apiPost(url, data) {
         await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-        await loadData(); // Wait for data reload before continuing
+        await loadData();
     }
 
     // Core
     function renderAll() { renderInventory(); renderRecipes(); }
     function getCat(id) { return db.categories.find(c=>c.id===id)||{name:'-',color:'#ccc'}; }
-    function getIng(id) { return db.ingredients.find(i=>i.id===id)||{name:'?',emoji:'❓'}; }
+    function getIng(id) { return db.ingredients.find(i=>i.id===id) || {name:'未知/已删', emoji:'🚫', isDeleted:true}; }
     function getRTag(id) { return db.recipeTags.find(t=>t.id===id)||{name:'',color:'#ccc'}; }
 
     function renderInventory() {
@@ -256,7 +367,9 @@
         document.getElementById('v-r-desc').innerHTML = marked.parse(r.desc);
         document.getElementById('v-r-tags').innerHTML = r.tagIds.map(tid=>`<span class="tag" style="background:${getRTag(tid).color}20; color:${getRTag(tid).color}">${getRTag(tid).name}</span>`).join('');
         document.getElementById('v-r-ings').innerHTML = r.ingredients.map(ri=>{
-            const i = getIng(ri.id), has = (db.inventory[i.id]||0)>0;
+            const i = getIng(ri.id);
+            if(i.isDeleted) return `<span class="tag" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca">🚫 未知/已删</span>`;
+            const has = (db.inventory[i.id]||0)>0;
             const bg = has ? 'var(--success)' : (ri.req ? '#fee2e2' : '#f8fafc');
             return `<span class="tag" style="background:${bg}; color:#333; padding:5px 8px; border:1px solid #ddd">${i.emoji} ${i.name}</span>`;
         }).join('');
@@ -285,31 +398,17 @@
         document.getElementById('e-r-tag-grid').innerHTML = db.recipeTags.map(t => 
             `<div class="sel-card ${editTags.has(t.id)?'selected':''}" onclick="toggleTag('${t.id}')">${t.name}</div>`
         ).join('');
-        
         const sorted = [...db.ingredients].sort((a,b)=>a.catId.localeCompare(b.catId));
         document.getElementById('e-r-ing-grid').innerHTML = sorted.map(i => {
             const s = editIngs[i.id];
-            return `<div class="sel-card ${s.sel?'selected':''}" onclick="toggleIngCard(event, '${i.id}')">
+            return `<div class="sel-card ${s.sel?'selected':''}" onclick="if(!event.target.classList.contains('req-btn')) {editIngs['${i.id}'].sel=!s.sel; renderEditSelectors();}">
                 <div style="font-size:1.4rem">${i.emoji}</div><div style="font-size:0.8rem">${i.name}</div>
-                ${s.sel ? `<button class="req-btn ${s.req?'is-req':'is-opt'}">${s.req?'必须':'可选'}</button>` : ''}
+                ${s.sel ? `<button class="req-btn ${s.req?'is-req':'is-opt'}" onclick="editIngs['${i.id}'].req=!s.req; renderEditSelectors()">${s.req?'必须':'可选'}</button>` : ''}
             </div>`;
         }).join('');
     }
 
     function toggleTag(id) { if(editTags.has(id)) editTags.delete(id); else editTags.add(id); renderEditSelectors(); }
-    
-    // Fix: Updated click handler for ingredient selection
-    function toggleIngCard(e, id) {
-        // If clicking the requirement button, toggle requirement only
-        if(e.target.classList.contains('req-btn')) {
-            editIngs[id].req = !editIngs[id].req;
-        } else {
-            // Otherwise toggle selection
-            editIngs[id].sel = !editIngs[id].sel;
-        }
-        renderEditSelectors();
-    }
-
     function saveRecipe() {
         const name = document.getElementById('e-r-name').value;
         if(!name) return alert('请填名称');
@@ -324,74 +423,130 @@
         if(confirm('删除?')) apiPost('/api/recipe/delete', {id: document.getElementById('e-r-id').value}).then(()=>closeModal('modal-r-edit'));
     }
 
-    // Archive
+    // Meta Manager
     function openArchive() { document.getElementById('modal-archive').classList.add('open'); switchTab('ing'); }
     function switchTab(t) {
         document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
         document.getElementById('tab-'+t).classList.add('active');
-        ['ing','cat','rtag'].forEach(x=>document.getElementById('view-'+x).style.display = x===t?'block':'none');
-        if(t==='ing') listIng();
-        if(t==='cat') listCat();
-        if(t==='rtag') listRTag();
+        ['ing','cat','rtag'].forEach(x => {
+            document.getElementById('view-'+x).style.display = x===t?'block':'none';
+        });
+        renderMetaList(t);
     }
-    function listIng() {
-        const sel = document.getElementById('n-i-cat');
-        sel.innerHTML = db.categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-        document.getElementById('list-ing').innerHTML = db.ingredients.map(i=>
-            `<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee"><span>${i.emoji} ${i.name}</span><button class="btn btn-danger" style="padding:2px 8px" onclick="delMeta('ingredient','${i.id}','ing')">删</button></div>`
-        ).join('');
+    
+    function renderMetaList(type) {
+        if(type==='ing') {
+            document.getElementById('n-i-cat').innerHTML = db.categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById('list-ing').innerHTML = db.ingredients.map(i=>
+                `<div class="list-row">
+                    <span style="flex:1">${i.emoji} ${i.name}</span>
+                    <div class="row-actions">
+                        <button class="btn" style="padding:4px 8px;font-size:0.8rem" onclick="openEditIng('${i.id}')">✎ 编辑</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem" onclick="delMeta('ingredient','${i.id}','ing')">删</button>
+                    </div>
+                </div>`
+            ).join('');
+        } else {
+            const listId = type==='cat' ? 'list-cat' : 'list-rtag';
+            const src = type==='cat' ? db.categories : db.recipeTags;
+            const apiType = type==='cat' ? 'category' : 'recipeTag';
+            document.getElementById(listId).innerHTML = src.map(i=>
+                `<div class="list-row">
+                    <span style="flex:1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${i.color};margin-right:8px"></span>${i.name}</span>
+                    <div class="row-actions">
+                        <button class="btn" style="padding:4px 8px;font-size:0.8rem" onclick="openEditTag('${apiType}', '${i.id}')">✎ 编辑</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem" onclick="delMeta('${apiType}','${i.id}','${type}')">删</button>
+                    </div>
+                </div>`
+            ).join('');
+        }
     }
-    function listCat() {
-        document.getElementById('list-cat').innerHTML = db.categories.map(c=>
-            `<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee"><span style="color:${c.color}">■ ${c.name}</span><button class="btn btn-danger" style="padding:2px 8px" onclick="delMeta('category','${c.id}','cat')">删</button></div>`
-        ).join('');
+
+    function openEditIng(id) {
+        const i = getIng(id);
+        document.getElementById('edit-i-id').value = id;
+        document.getElementById('edit-i-name').value = i.name;
+        document.getElementById('edit-i-emoji').value = i.emoji;
+        document.getElementById('edit-i-unit').value = i.unit;
+        document.getElementById('edit-i-cat').innerHTML = db.categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+        document.getElementById('edit-i-cat').value = i.catId;
+        document.getElementById('modal-edit-ing').classList.add('open');
     }
-    function listRTag() {
-        document.getElementById('list-rtag').innerHTML = db.recipeTags.map(t=>
-            `<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee"><span style="color:${t.color}">■ ${t.name}</span><button class="btn btn-danger" style="padding:2px 8px" onclick="delMeta('recipeTag','${t.id}','rtag')">删</button></div>`
-        ).join('');
+
+    function openEditTag(type, id) {
+        const item = type==='category' ? getCat(id) : getRTag(id);
+        document.getElementById('edit-tag-title').innerText = type==='category'?'修改分类':'修改标签';
+        document.getElementById('edit-tag-id').value = id;
+        document.getElementById('edit-tag-type').value = type==='category'?'category':'recipeTag';
+        document.getElementById('edit-tag-name').value = item.name;
+        document.getElementById('edit-tag-color').value = item.color;
+        document.getElementById('edit-tag-swatch').style.background = item.color;
+        document.getElementById('modal-edit-tag').classList.add('open');
     }
+
     async function addMeta(type) {
         const id = Date.now().toString();
-        let data = {type, id};
+        let data = {type, id, mode:'add'};
         if(type==='ingredient') {
-            data.name=document.getElementById('n-i-name').value;
-            data.emoji=document.getElementById('n-i-emoji').value||'🥔';
-            data.unit=document.getElementById('n-i-unit').value||'g';
-            data.catId=document.getElementById('n-i-cat').value;
+            data.name = document.getElementById('n-i-name').value;
+            data.emoji = document.getElementById('n-i-emoji').value||'🥔';
+            data.unit = document.getElementById('n-i-unit').value||'g';
+            data.catId = document.getElementById('n-i-cat').value;
             if(!data.name) return;
             document.getElementById('n-i-name').value='';
         } else {
             let p = type==='category'?'c':'r';
-            data.name=document.getElementById(`n-${p}-name`).value;
-            data.color=document.getElementById(`n-${p}-color`).value;
+            data.name = document.getElementById(`n-${p}-name`).value;
+            data.color = document.getElementById(`n-${p}-color`).value;
             if(!data.name) return;
             document.getElementById(`n-${p}-name`).value='';
         }
-        await apiPost('/api/meta/add', data);
-        // Explicitly reload the current list
-        if(type==='ingredient') listIng();
-        else if(type==='category') listCat();
-        else listRTag();
+        await apiPost('/api/meta/save', data);
+        renderMetaList(type==='recipeTag'?'rtag':(type==='category'?'cat':'ing'));
     }
-    async function delMeta(type, id, tab) {
-        if(confirm('删除?')) {
-            await apiPost('/api/meta/delete', {type, id});
-            switchTab(tab); // Refresh list
+
+    async function updateMeta(formType) {
+        let data = { mode:'update' };
+        if(formType === 'ingredient') {
+            data.type = 'ingredient';
+            data.id = document.getElementById('edit-i-id').value;
+            data.name = document.getElementById('edit-i-name').value;
+            data.emoji = document.getElementById('edit-i-emoji').value;
+            data.unit = document.getElementById('edit-i-unit').value;
+            data.catId = document.getElementById('edit-i-cat').value;
+            await apiPost('/api/meta/save', data);
+            closeModal('modal-edit-ing');
+            renderMetaList('ing');
+        } else {
+            const type = document.getElementById('edit-tag-type').value;
+            data.type = type;
+            data.id = document.getElementById('edit-tag-id').value;
+            data.name = document.getElementById('edit-tag-name').value;
+            data.color = document.getElementById('edit-tag-color').value;
+            await apiPost('/api/meta/save', data);
+            closeModal('modal-edit-tag');
+            renderMetaList(type==='recipeTag'?'rtag':'cat');
         }
     }
 
-    // Stock
+    async function delMeta(type, id, tab) {
+        if(confirm('删除?')) {
+            await apiPost('/api/meta/delete', {type, id});
+            renderMetaList(tab);
+        }
+    }
+
     function openStock(id) {
         document.getElementById('st-id').value=id;
         document.getElementById('st-qty').value=db.inventory[id]||0;
         document.getElementById('st-name').innerText = getIng(id).emoji + ' ' + getIng(id).name;
         document.getElementById('modal-stock').classList.add('open');
+        setTimeout(() => document.getElementById('st-qty').focus(), 100);
     }
-    function adjStock(d) { const el=document.getElementById('st-qty'); el.value=Math.max(0, parseInt(el.value)+d); }
+    function adjStock(d) { const el=document.getElementById('st-qty'); el.value=Math.max(0, parseInt(el.value||0)+d); }
     function saveStock() {
         const id=document.getElementById('st-id').value;
-        const qty=parseInt(document.getElementById('st-qty').value);
+        const qty=parseInt(document.getElementById('st-qty').value||0);
         apiPost('/api/inventory/update', {id, qty}).then(()=>closeModal('modal-stock'));
     }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
