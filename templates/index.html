@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PantryChef v7</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5; --primary-bg: #e0e7ff;
+            --bg-body: #f8fafc; --bg-surface: #ffffff;
+            --border: #e2e8f0; --text: #1e293b; --text-sub: #64748b;
+            --success: #10b981; --danger: #ef4444;
+            --r-s: 6px; --r-m: 8px; --r-l: 12px;
+        }
+        * { box-sizing: border-box; outline: none; }
+        body { margin: 0; height: 100vh; font-family: -apple-system, sans-serif; background: var(--bg-body); color: var(--text); display: flex; flex-direction: column; overflow: hidden; font-size: 14px; }
+        .btn { padding: 8px 16px; border-radius: var(--r-m); border: 1px solid var(--border); background: #fff; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.1s; color: var(--text); }
+        .btn:hover { background: #f1f5f9; }
+        .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-danger { color: var(--danger); border-color: #fecaca; }
+        .btn-toggle { color: var(--text-sub); border-color: var(--border); }
+        .btn-toggle.active { background: var(--success); color: white; border-color: var(--success); }
+        input, textarea, select { padding: 9px; border: 1px solid var(--border); border-radius: var(--r-m); width: 100%; font-family: inherit; background: #fff; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-bg); }
+        header { height: 56px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; flex-shrink: 0; }
+        .brand { font-weight: 700; font-size: 1.2rem; color: var(--primary); }
+        main { flex: 1; display: grid; grid-template-columns: 350px 1fr; gap: 1px; background: var(--border); overflow: hidden; }
+        .panel { background: var(--bg-body); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+        .panel-head { padding: 12px 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .panel-body { flex: 1; overflow-y: auto; padding: 15px; }
+        .inv-item { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-m); padding: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .inv-emoji { font-size: 1.8rem; width: 40px; text-align: center; }
+        .inv-info { flex: 1; }
+        .tag { padding: 2px 8px; border-radius: var(--r-s); font-size: 0.8rem; border: 1px solid transparent; display: inline-block; }
+        .inv-ctrl { display: flex; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--r-s); }
+        .btn-qty { border: none; background: transparent; width: 28px; height: 28px; cursor: pointer; font-weight: bold; color: var(--text-sub); }
+        .inv-val { font-weight: 700; min-width: 32px; text-align: center; line-height: 28px; font-size: 0.95rem; }
+        .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .recipe-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-m); padding: 15px; cursor: pointer; transition: 0.1s; display: flex; flex-direction: column; gap: 8px; }
+        .recipe-card.cookable { border-left: 4px solid var(--success); background: #f0fdf4; }
+        .rc-head { display: flex; gap: 12px; align-items: flex-start; }
+        .rc-icon { width: 44px; height: 44px; background: #f8fafc; border-radius: var(--r-s); display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 1px solid var(--border); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal-overlay.open { display: flex; }
+        .modal { background: #fff; width: 650px; max-width: 95%; max-height: 90vh; border-radius: var(--r-l); display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-head { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; overflow-y: auto; background: #f8fafc; flex: 1; }
+        .modal-foot { padding: 15px; border-top: 1px solid var(--border); background: #fff; text-align: right; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .tab { padding: 6px 12px; border-radius: var(--r-s); cursor: pointer; color: var(--text-sub); }
+        .tab.active { background: var(--primary-bg); color: var(--primary); font-weight: 700; }
+        .sel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 8px; }
+        .sel-card { border: 1px solid var(--border); border-radius: var(--r-m); padding: 8px; background: #fff; cursor: pointer; text-align: center; }
+        .sel-card.selected { border-color: var(--primary); background: #f0fdf4; }
+        .req-btn { width:100%; font-size:0.75rem; margin-top:5px; padding:2px; cursor:pointer; border-radius:4px; border:1px solid transparent; }
+        .req-btn.is-req { background:#fef3c7; color:#b45309; }
+        .req-btn.is-opt { background:#f1f5f9; color:#64748b; }
+        @media (max-width: 768px) {
+            main { grid-template-columns: 1fr; }
+            .panel { height: auto; min-height: 50vh; }
+            body { overflow-y: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">🥗 PantryChef</div>
+    <div style="display:flex; gap:10px">
+        <button class="btn" onclick="openArchive()">📁 档案</button>
+        <button class="btn" onclick="location.reload()">🔄 刷新</button>
+    </div>
+</header>
+
+<main>
+    <div class="panel" style="border-right:1px solid var(--border);">
+        <div class="panel-head"><h3>🧊 库存</h3><span style="font-size:0.85rem; color:var(--text-sub)" id="stock-count">...</span></div>
+        <div style="padding:15px 20px 0;"><input type="text" id="search-inv" placeholder="🔍 搜索..." onkeyup="renderInventory()"></div>
+        <div class="panel-body" id="inv-list"></div>
+    </div>
+    <div class="panel">
+        <div class="panel-head">
+            <div style="display:flex; align-items:center; gap:15px">
+                <h3>🍽️ 菜谱</h3>
+                <button id="btn-filter" class="btn btn-toggle" onclick="toggleFilter()"><span class="icon">👁️</span> 仅看可做</button>
+            </div>
+            <button class="btn btn-primary" onclick="openRecipeEditor()">+ 新菜谱</button>
+        </div>
+        <div class="panel-body"><div id="recipe-list" class="recipe-grid"></div></div>
+    </div>
+</main>
+
+<!-- Recipe Viewer -->
+<div class="modal-overlay" id="modal-r-view">
+    <div class="modal">
+        <div class="modal-head"><h3 id="v-r-title"></h3><div style="display:flex; gap:8px"><button class="btn" onclick="toEditMode()">✏️ 编辑</button><button class="btn" onclick="closeModal('modal-r-view')">✕</button></div></div>
+        <div class="modal-body">
+            <div id="v-r-tags" style="display:flex; gap:6px; margin-bottom:15px"></div>
+            <div style="background:#fff; border:1px solid var(--border); padding:15px; border-radius:var(--r-m); margin-bottom:15px"><div id="v-r-ings" style="display:flex; flex-wrap:wrap; gap:8px"></div></div>
+            <div id="v-r-desc" style="line-height:1.6"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Recipe Editor -->
+<div class="modal-overlay" id="modal-r-edit">
+    <div class="modal" style="width:700px">
+        <div class="modal-head"><h3 id="e-r-title"></h3><button class="btn" onclick="closeModal('modal-r-edit')">✕</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="e-r-id">
+            <label style="font-weight:600;display:block;margin-bottom:5px">名称</label><input type="text" id="e-r-name" style="margin-bottom:15px">
+            <label style="font-weight:600;display:block;margin-bottom:5px">标签</label><div id="e-r-tag-grid" class="sel-grid" style="margin-bottom:15px"></div>
+            <label style="font-weight:600;display:block;margin-bottom:5px">食材</label>
+            <div style="background:#fff; border:1px solid var(--border); padding:10px; border-radius:var(--r-m); max-height:200px; overflow-y:auto; margin-bottom:15px">
+                <div id="e-r-ing-grid" class="sel-grid"></div>
+            </div>
+            <label style="font-weight:600;display:block;margin-bottom:5px">步骤</label><textarea id="e-r-desc" rows="6"></textarea>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-danger" onclick="deleteRecipe()">删除</button>
+            <button class="btn btn-primary" onclick="saveRecipe()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Archive Manager -->
+<div class="modal-overlay" id="modal-archive">
+    <div class="modal">
+        <div class="modal-head"><h3>档案管理</h3><button class="btn" onclick="closeModal('modal-archive')">✕</button></div>
+        <div class="modal-body">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('ing')" id="tab-ing">食材库</div>
+                <div class="tab" onclick="switchTab('cat')" id="tab-cat">分类</div>
+                <div class="tab" onclick="switchTab('rtag')" id="tab-rtag">标签</div>
+            </div>
+            <div id="view-ing">
+                <div style="display:flex; gap:5px; margin-bottom:10px">
+                    <input id="n-i-emoji" placeholder="Emoji" style="width:50px;text-align:center">
+                    <input id="n-i-name" placeholder="名称" style="flex:1">
+                    <input id="n-i-unit" placeholder="单位" style="width:60px">
+                    <select id="n-i-cat" style="width:100px"></select>
+                    <button class="btn btn-primary" onclick="addMeta('ingredient')">添加</button>
+                </div>
+                <div id="list-ing"></div>
+            </div>
+            <div id="view-cat" style="display:none">
+                <div style="display:flex; gap:5px; margin-bottom:10px"><input type="color" id="n-c-color" value="#64748b" style="width:40px"><input id="n-c-name" placeholder="分类名称"><button class="btn btn-primary" onclick="addMeta('category')">添加</button></div><div id="list-cat"></div>
+            </div>
+            <div id="view-rtag" style="display:none">
+                <div style="display:flex; gap:5px; margin-bottom:10px"><input type="color" id="n-r-color" value="#f59e0b" style="width:40px"><input id="n-r-name" placeholder="标签名称"><button class="btn btn-primary" onclick="addMeta('recipeTag')">添加</button></div><div id="list-rtag"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Modal -->
+<div class="modal-overlay" id="modal-stock">
+    <div class="modal" style="width:300px">
+        <div class="modal-head"><h3 id="st-name"></h3><button class="btn" onclick="closeModal('modal-stock')">✕</button></div>
+        <div class="modal-body" style="text-align:center">
+            <input type="hidden" id="st-id">
+            <div style="display:flex; gap:10px; margin-bottom:15px">
+                <button class="btn" style="flex:1;font-size:1.2rem" onclick="adjStock(-1)">-</button>
+                <input id="st-qty" readonly style="text-align:center;font-size:1.2rem;font-weight:bold">
+                <button class="btn" style="flex:1;font-size:1.2rem" onclick="adjStock(1)">+</button>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="saveStock()">确认</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let db = {};
+    let filterActive = false;
+
+    // API & Data
+    async function loadData() {
+        try {
+            const res = await fetch('/api/data');
+            db = await res.json();
+            renderAll();
+        } catch(e) { console.error("Data load failed", e); }
+    }
+    async function apiPost(url, data) {
+        await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        await loadData(); // Wait for data reload before continuing
+    }
+
+    // Core
+    function renderAll() { renderInventory(); renderRecipes(); }
+    function getCat(id) { return db.categories.find(c=>c.id===id)||{name:'-',color:'#ccc'}; }
+    function getIng(id) { return db.ingredients.find(i=>i.id===id)||{name:'?',emoji:'❓'}; }
+    function getRTag(id) { return db.recipeTags.find(t=>t.id===id)||{name:'',color:'#ccc'}; }
+
+    function renderInventory() {
+        const list = document.getElementById('inv-list');
+        const term = document.getElementById('search-inv').value.toLowerCase();
+        list.innerHTML = '';
+        let items = db.ingredients.filter(i=>i.name.toLowerCase().includes(term));
+        items.sort((a,b) => {
+            const sA = db.inventory[a.id]||0, sB = db.inventory[b.id]||0;
+            return (sA>0) === (sB>0) ? a.catId.localeCompare(b.catId) : sB - sA;
+        });
+        items.forEach(i => {
+            const qty = db.inventory[i.id]||0, cat = getCat(i.catId);
+            list.innerHTML += `
+                <div class="inv-item" onclick="if(!event.target.closest('.inv-ctrl')) openStock('${i.id}')">
+                    <div class="inv-emoji" style="opacity:${qty>0?1:0.3}">${i.emoji}</div>
+                    <div class="inv-info">
+                        <div style="font-weight:600">${i.name}</div>
+                        <span class="tag" style="background:${cat.color}20; color:${cat.color}">${cat.name}</span>
+                    </div>
+                    <div class="inv-ctrl">
+                        <button class="btn-qty" onclick="apiPost('/api/inventory/update', {id:'${i.id}', qty:${Math.max(0,qty-1)}})">-</button>
+                        <div class="inv-val">${qty}</div>
+                        <button class="btn-qty" onclick="apiPost('/api/inventory/update', {id:'${i.id}', qty:${qty+1}})">+</button>
+                    </div>
+                </div>`;
+        });
+        document.getElementById('stock-count').innerText = items.filter(i=>(db.inventory[i.id]||0)>0).length + ' 种有货';
+    }
+
+    function toggleFilter() {
+        filterActive = !filterActive;
+        document.getElementById('btn-filter').classList.toggle('active', filterActive);
+        renderRecipes();
+    }
+
+    function renderRecipes() {
+        const list = document.getElementById('recipe-list');
+        list.innerHTML = '';
+        let recipes = db.recipes.map(r => {
+            let ok=0, req=0;
+            r.ingredients.forEach(ri => { if(ri.req) { req++; if((db.inventory[ri.id]||0)>0) ok++; } });
+            return {...r, cookable: (req>0 && req===ok) || req===0};
+        }).sort((a,b) => b.cookable - a.cookable);
+        
+        recipes.forEach(r => {
+            if(filterActive && !r.cookable) return;
+            const icon = r.ingredients.slice(0,2).map(ri=>getIng(ri.id).emoji).join('') || '🍲';
+            const tags = r.tagIds.map(tid=>`<span class="tag" style="background:#f1f5f9">${getRTag(tid).name}</span>`).join('');
+            list.innerHTML += `
+                <div class="recipe-card ${r.cookable?'cookable':''}" onclick="openRView('${r.id}')">
+                    <div class="rc-head"><div class="rc-icon">${icon}</div><div style="flex:1"><div style="font-weight:700">${r.name}</div><div style="display:flex;gap:4px">${tags}</div></div></div>
+                </div>`;
+        });
+    }
+
+    let curRId=null, editIngs={}, editTags=new Set();
+    function openRView(id) {
+        curRId = id;
+        const r = db.recipes.find(x=>x.id===id);
+        document.getElementById('v-r-title').innerText = r.name;
+        document.getElementById('v-r-desc').innerHTML = marked.parse(r.desc);
+        document.getElementById('v-r-tags').innerHTML = r.tagIds.map(tid=>`<span class="tag" style="background:${getRTag(tid).color}20; color:${getRTag(tid).color}">${getRTag(tid).name}</span>`).join('');
+        document.getElementById('v-r-ings').innerHTML = r.ingredients.map(ri=>{
+            const i = getIng(ri.id), has = (db.inventory[i.id]||0)>0;
+            const bg = has ? 'var(--success)' : (ri.req ? '#fee2e2' : '#f8fafc');
+            return `<span class="tag" style="background:${bg}; color:#333; padding:5px 8px; border:1px solid #ddd">${i.emoji} ${i.name}</span>`;
+        }).join('');
+        document.getElementById('modal-r-view').classList.add('open');
+    }
+
+    function toEditMode() { closeModal('modal-r-view'); openRecipeEditor(curRId); }
+    function openRecipeEditor(id=null) {
+        curRId = id;
+        const r = id ? db.recipes.find(x=>x.id===id) : {name:'', desc:'', tagIds:[], ingredients:[]};
+        document.getElementById('e-r-title').innerText = id ? '编辑' : '新建';
+        document.getElementById('e-r-id').value = id || 'new_'+Date.now();
+        document.getElementById('e-r-name').value = r.name;
+        document.getElementById('e-r-desc').value = r.desc;
+        editTags = new Set(r.tagIds);
+        editIngs = {};
+        db.ingredients.forEach(i => {
+            const ex = r.ingredients.find(ri=>ri.id===i.id);
+            editIngs[i.id] = { sel: !!ex, req: ex?ex.req:true };
+        });
+        renderEditSelectors();
+        document.getElementById('modal-r-edit').classList.add('open');
+    }
+
+    function renderEditSelectors() {
+        document.getElementById('e-r-tag-grid').innerHTML = db.recipeTags.map(t => 
+            `<div class="sel-card ${editTags.has(t.id)?'selected':''}" onclick="toggleTag('${t.id}')">${t.name}</div>`
+        ).join('');
+        
+        const sorted = [...db.ingredients].sort((a,b)=>a.catId.localeCompare(b.catId));
+        document.getElementById('e-r-ing-grid').innerHTML = sorted.map(i => {
+            const s = editIngs[i.id];
+            return `<div class="sel-card ${s.sel?'selected':''}" onclick="toggleIngCard(event, '${i.id}')">
+                <div style="font-size:1.4rem">${i.emoji}</div><div style="font-size:0.8rem">${i.name}</div>
+                ${s.sel ? `<button class="req-btn ${s.req?'is-req':'is-opt'}">${s.req?'必须':'可选'}</button>` : ''}
+            </div>`;
+        }).join('');
+    }
+
+    function toggleTag(id) { if(editTags.has(id)) editTags.delete(id); else editTags.add(id); renderEditSelectors(); }
+    
+    // Fix: Updated click handler for ingredient selection
+    function toggleIngCard(e, id) {
+        // If clicking the requirement button, toggle requirement only
+        if(e.target.classList.contains('req-btn')) {
+            editIngs[id].req = !editIngs[id].req;
+        } else {
+            // Otherwise toggle selection
+            editIngs[id].sel = !editIngs[id].sel;
+        }
+        renderEditSelectors();
+    }
+
+    function saveRecipe() {
+        const name = document.getElementById('e-r-name').value;
+        if(!name) return alert('请填名称');
+        const ings = [];
+        Object.keys(editIngs).forEach(k => { if(editIngs[k].sel) ings.push({id:k, req:editIngs[k].req}); });
+        apiPost('/api/recipe/save', {
+            id: document.getElementById('e-r-id').value, name, desc: document.getElementById('e-r-desc').value,
+            tagIds: Array.from(editTags), ingredients: ings
+        }).then(() => closeModal('modal-r-edit'));
+    }
+    function deleteRecipe() {
+        if(confirm('删除?')) apiPost('/api/recipe/delete', {id: document.getElementById('e-r-id').value}).then(()=>closeModal('modal-r-edit'));
+    }
+
+    // Archive
+    function openArchive() { document.getElementById('modal-archive').classList.add('open'); switchTab('ing'); }
+    function switchTab(t) {
+        document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+        document.getElementById('tab-'+t).classList.add('active');
+        ['ing','cat','rtag'].forEach(x=>document.getElementById('view-'+x).style.display = x===t?'block':'none');
+        if(t==='ing') listIng();
+        if(t==='cat') listCat();
+        if(t==='rtag') listRTag();
+    }
+    function listIng() {
+        const sel = document.getElementById('n-i-cat');
+        sel.innerHTML = db.categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+        document.getElementById('list-ing').innerHTML = db.ingredients.map(i=>
+            `<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee"><span>${i.emoji} ${i.name}</span><button class="btn btn-danger" style="padding:2px 8px" onclick="delMeta('ingredient','${i.id}','ing')">删</button></div>`
+        ).join('');
+    }
+    function listCat() {
+        document.getElementById('list-cat').innerHTML = db.categories.map(c=>
+            `<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee"><span style="color:${c.color}">■ ${c.name}</span><button class="btn btn-danger" style="padding:2px 8px" onclick="delMeta('category','${c.id}','cat')">删</button></div>`
+        ).join('');
+    }
+    function listRTag() {
+        document.getElementById('list-rtag').innerHTML = db.recipeTags.map(t=>
+            `<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #eee"><span style="color:${t.color}">■ ${t.name}</span><button class="btn btn-danger" style="padding:2px 8px" onclick="delMeta('recipeTag','${t.id}','rtag')">删</button></div>`
+        ).join('');
+    }
+    async function addMeta(type) {
+        const id = Date.now().toString();
+        let data = {type, id};
+        if(type==='ingredient') {
+            data.name=document.getElementById('n-i-name').value;
+            data.emoji=document.getElementById('n-i-emoji').value||'🥔';
+            data.unit=document.getElementById('n-i-unit').value||'g';
+            data.catId=document.getElementById('n-i-cat').value;
+            if(!data.name) return;
+            document.getElementById('n-i-name').value='';
+        } else {
+            let p = type==='category'?'c':'r';
+            data.name=document.getElementById(`n-${p}-name`).value;
+            data.color=document.getElementById(`n-${p}-color`).value;
+            if(!data.name) return;
+            document.getElementById(`n-${p}-name`).value='';
+        }
+        await apiPost('/api/meta/add', data);
+        // Explicitly reload the current list
+        if(type==='ingredient') listIng();
+        else if(type==='category') listCat();
+        else listRTag();
+    }
+    async function delMeta(type, id, tab) {
+        if(confirm('删除?')) {
+            await apiPost('/api/meta/delete', {type, id});
+            switchTab(tab); // Refresh list
+        }
+    }
+
+    // Stock
+    function openStock(id) {
+        document.getElementById('st-id').value=id;
+        document.getElementById('st-qty').value=db.inventory[id]||0;
+        document.getElementById('st-name').innerText = getIng(id).emoji + ' ' + getIng(id).name;
+        document.getElementById('modal-stock').classList.add('open');
+    }
+    function adjStock(d) { const el=document.getElementById('st-qty'); el.value=Math.max(0, parseInt(el.value)+d); }
+    function saveStock() {
+        const id=document.getElementById('st-id').value;
+        const qty=parseInt(document.getElementById('st-qty').value);
+        apiPost('/api/inventory/update', {id, qty}).then(()=>closeModal('modal-stock'));
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    
+    loadData();
+</script>
+</body>
+</html>
