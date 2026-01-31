@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PantryChef v9.1 (Fix)</title>
+    <title>智能冰箱管家 - PantryChef</title>
+    
+    <link rel="icon" type="image/x-icon" href="/static/icon/favicon.ico">
+    <link rel="apple-touch-icon" href="/static/icon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon/icon-192.png">
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
@@ -16,7 +21,6 @@
         * { box-sizing: border-box; outline: none; }
         body { margin: 0; height: 100vh; font-family: -apple-system, sans-serif; background: var(--bg-body); color: var(--text); display: flex; flex-direction: column; overflow: hidden; font-size: 14px; }
         
-        /* UI Kit */
         .btn { padding: 8px 16px; border-radius: var(--r-m); border: 1px solid var(--border); background: #fff; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.15s; color: var(--text); }
         .btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
         .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
@@ -29,16 +33,10 @@
         input, textarea, select { padding: 9px; border: 1px solid var(--border); border-radius: var(--r-m); width: 100%; font-family: inherit; background: #fff; transition: 0.2s; }
         input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-bg); }
         
-        /* Custom Color Picker */
-        .color-picker-wrapper { position: relative; width: 40px; height: 38px; }
+        .color-picker-wrapper { position: relative; width: 40px; height: 38px; flex-shrink: 0; }
         .color-picker-input { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2; }
-        .color-picker-swatch { 
-            width: 100%; height: 100%; border-radius: var(--r-m); border: 1px solid var(--border);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s;
-        }
-        .color-picker-wrapper:hover .color-picker-swatch { transform: scale(1.05); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .color-picker-swatch { width: 100%; height: 100%; border-radius: var(--r-m); border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s; }
 
-        /* Layout */
         header { height: 56px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; flex-shrink: 0; }
         .brand { font-weight: 700; font-size: 1.2rem; color: var(--primary); }
         main { flex: 1; display: grid; grid-template-columns: 350px 1fr; gap: 1px; background: var(--border); overflow: hidden; }
@@ -46,7 +44,6 @@
         .panel-head { padding: 12px 20px; background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .panel-body { flex: 1; overflow-y: auto; padding: 15px; }
 
-        /* Inventory Items */
         .inv-item { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-m); padding: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
         .inv-item:hover { border-color: #cbd5e1; }
         .inv-emoji { font-size: 1.8rem; width: 40px; text-align: center; }
@@ -56,14 +53,13 @@
         .btn-qty { border: none; background: transparent; width: 28px; height: 28px; cursor: pointer; font-weight: bold; color: var(--text-sub); }
         .inv-val { font-weight: 700; min-width: 32px; text-align: center; line-height: 28px; font-size: 0.95rem; }
 
-        /* Recipe Grid */
         .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
         .recipe-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-m); padding: 15px; cursor: pointer; transition: 0.1s; display: flex; flex-direction: column; gap: 8px; }
         .recipe-card.cookable { border-left: 4px solid var(--success); background: #f0fdf4; }
+        .recipe-card.warning { border-left: 4px solid var(--warning); background: #fffbeb; }
         .rc-head { display: flex; gap: 12px; align-items: flex-start; }
         .rc-icon { width: 44px; height: 44px; background: #f8fafc; border-radius: var(--r-s); display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 1px solid var(--border); }
 
-        /* Common Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal-overlay.open { display: flex; }
         .modal { background: #fff; width: 650px; max-width: 95%; max-height: 90vh; border-radius: var(--r-l); display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
@@ -71,23 +67,17 @@
         .modal-body { padding: 20px; overflow-y: auto; background: #f8fafc; flex: 1; }
         .modal-foot { padding: 15px; border-top: 1px solid var(--border); background: #fff; text-align: right; }
 
-        /* Archive List Rows */
-        .list-row { 
-            display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; align-items:center; background: #fff; transition: 0.1s;
-        }
+        .list-row { display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee; align-items:center; background: #fff; transition: 0.1s; }
         .list-row:first-child { border-top-left-radius: var(--r-m); border-top-right-radius: var(--r-m); }
         .list-row:last-child { border-bottom: none; border-bottom-left-radius: var(--r-m); border-bottom-right-radius: var(--r-m); }
         .list-row:hover { background: #f1f5f9; }
-        
         .row-actions { display: flex; gap: 8px; opacity: 0.4; transition: 0.2s; }
         .list-row:hover .row-actions { opacity: 1; }
 
-        /* Tabs */
-        .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .tab { padding: 6px 12px; border-radius: var(--r-s); cursor: pointer; color: var(--text-sub); }
+        .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; overflow-x: auto; }
+        .tab { padding: 6px 12px; border-radius: var(--r-s); cursor: pointer; color: var(--text-sub); white-space: nowrap; }
         .tab.active { background: var(--primary-bg); color: var(--primary); font-weight: 700; }
 
-        /* Selectors */
         .sel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 8px; }
         .sel-card { border: 1px solid var(--border); border-radius: var(--r-m); padding: 8px; background: #fff; cursor: pointer; text-align: center; }
         .sel-card.selected { border-color: var(--primary); background: #f0fdf4; }
@@ -95,22 +85,30 @@
         .req-btn.is-req { background:#fef3c7; color:#b45309; }
         .req-btn.is-opt { background:#f1f5f9; color:#64748b; }
 
-        /* Stock Number Input Clean */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .author-card { background: #fff; border-radius: var(--r-l); padding: 20px; border: 1px solid var(--border); line-height: 1.6; }
+        .author-card h2 { margin-top: 0; color: var(--primary); }
+        .author-card a { color: var(--primary); font-weight: bold; text-decoration: none; }
+
+        .form-row { display: flex; gap: 8px; margin-bottom: 15px; background: #e0e7ff; padding: 12px; border-radius: var(--r-m); }
         
         @media (max-width: 768px) {
             main { grid-template-columns: 1fr; }
             .panel { height: auto; min-height: 50vh; }
             body { overflow-y: auto; }
             .row-actions { opacity: 1; }
+            .form-row { flex-wrap: wrap; }
+            #n-i-emoji { width: 50px; }
+            #n-i-name { flex: 1; min-width: 150px; }
+            #n-i-unit { width: 80px; }
+            #n-i-cat { width: 100%; }
+            #btn-ing-save { width: 100%; }
         }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="brand">🥗 PantryChef</div>
+    <div class="brand">智能冰箱管家 - PantryChef</div>
     <div style="display:flex; gap:10px">
         <button class="btn" onclick="openArchive()">📁 档案管理</button>
         <button class="btn" onclick="location.reload()">🔄 刷新</button>
@@ -155,7 +153,7 @@
             <input type="hidden" id="e-r-id">
             <label style="font-weight:600;display:block;margin-bottom:5px">名称</label><input type="text" id="e-r-name" style="margin-bottom:15px">
             <label style="font-weight:600;display:block;margin-bottom:5px">标签</label><div id="e-r-tag-grid" class="sel-grid" style="margin-bottom:15px"></div>
-            <label style="font-weight:600;display:block;margin-bottom:5px">食材</label>
+            <label style="font-weight:600;display:block;margin-bottom:5px">食材 (点击卡片选中，点击数字修改需求量)</label>
             <div style="background:#fff; border:1px solid var(--border); padding:10px; border-radius:var(--r-m); max-height:200px; overflow-y:auto; margin-bottom:15px">
                 <div id="e-r-ing-grid" class="sel-grid"></div>
             </div>
@@ -177,25 +175,22 @@
                 <div class="tab active" onclick="switchTab('ing')" id="tab-ing">食材库</div>
                 <div class="tab" onclick="switchTab('cat')" id="tab-cat">分类</div>
                 <div class="tab" onclick="switchTab('rtag')" id="tab-rtag">标签</div>
+                <div class="tab" onclick="switchTab('about')" id="tab-about">关于作者</div>
             </div>
             
-            <!-- Views -->
             <div id="view-ing">
-                <!-- Add Bar -->
-                <div style="display:flex; gap:8px; margin-bottom:15px; background:#e0e7ff; padding:12px; border-radius:var(--r-m);">
+                <div class="form-row">
                     <input id="n-i-emoji" placeholder="Emoji" style="width:50px; text-align:center">
-                    <input id="n-i-name" placeholder="名称" style="flex:2">
+                    <input id="n-i-name" placeholder="名称" style="flex:1">
                     <input id="n-i-unit" placeholder="单位" style="width:60px">
                     <select id="n-i-cat" style="width:100px"></select>
-                    <button class="btn btn-primary" onclick="addMeta('ingredient')">添加</button>
+                    <button id="btn-ing-save" class="btn btn-primary" onclick="addMeta('ingredient')">添加</button>
                 </div>
-                <!-- List -->
                 <div id="list-ing" style="border:1px solid var(--border); border-radius:var(--r-m);"></div>
             </div>
 
             <div id="view-cat" style="display:none">
-                <!-- Add Bar -->
-                <div style="display:flex; gap:8px; margin-bottom:15px; background:#e0e7ff; padding:12px; border-radius:var(--r-m);">
+                <div class="form-row">
                     <div class="color-picker-wrapper">
                         <input type="color" id="n-c-color" value="#64748b" class="color-picker-input" oninput="this.nextElementSibling.style.background=this.value">
                         <div class="color-picker-swatch" style="background:#64748b"></div>
@@ -203,13 +198,11 @@
                     <input id="n-c-name" placeholder="分类名称" style="flex:1">
                     <button class="btn btn-primary" onclick="addMeta('category')">添加</button>
                 </div>
-                <!-- List -->
                 <div id="list-cat" style="border:1px solid var(--border); border-radius:var(--r-m);"></div>
             </div>
 
             <div id="view-rtag" style="display:none">
-                <!-- Add Bar -->
-                <div style="display:flex; gap:8px; margin-bottom:15px; background:#e0e7ff; padding:12px; border-radius:var(--r-m);">
+                <div class="form-row">
                     <div class="color-picker-wrapper">
                         <input type="color" id="n-r-color" value="#f59e0b" class="color-picker-input" oninput="this.nextElementSibling.style.background=this.value">
                         <div class="color-picker-swatch" style="background:#f59e0b"></div>
@@ -217,8 +210,18 @@
                     <input id="n-r-name" placeholder="标签名称" style="flex:1">
                     <button class="btn btn-primary" onclick="addMeta('recipeTag')">添加</button>
                 </div>
-                <!-- List -->
                 <div id="list-rtag" style="border:1px solid var(--border); border-radius:var(--r-m);"></div>
+            </div>
+
+            <div id="view-about" style="display:none">
+                <div class="author-card">
+                    <h2>👨‍🍳 智能冰箱管家 - PantryChef</h2>
+                    <p><strong>开发者：</strong> haoyangjunjun & AI 助手</p>
+                    <p><strong>GitHub：</strong> <a href="https://github.com/haoyangjunjun" target="_blank">github.com/haoyangjunjun</a></p>
+                    <hr style="border: 0; border-top: 1px solid var(--border); margin: 15px 0;">
+                    <p><strong>💡 开发初衷：</strong></p>
+                    <p>为了解决做饭总是先要到冰箱里统计食材数量（而且冰箱并不在厨房）的痛点，也是工作学习写毕设之余的新鲜想法，总是要付出实践的。</p>
+                </div>
             </div>
         </div>
     </div>
@@ -286,7 +289,6 @@
     let db = {};
     let filterActive = false;
 
-    // API
     async function loadData() {
         try {
             const res = await fetch('/api/data');
@@ -299,10 +301,9 @@
         await loadData();
     }
 
-    // Core
     function renderAll() { renderInventory(); renderRecipes(); }
     function getCat(id) { return db.categories.find(c=>c.id===id)||{name:'-',color:'#ccc'}; }
-    function getIng(id) { return db.ingredients.find(i=>i.id===id) || {name:'未知/已删', emoji:'🚫', isDeleted:true}; }
+    function getIng(id) { return db.ingredients.find(i=>i.id===id) || {name:'未知/已删', emoji:'🚫', isDeleted:true, unit:''}; }
     function getRTag(id) { return db.recipeTags.find(t=>t.id===id)||{name:'',color:'#ccc'}; }
 
     function renderInventory() {
@@ -343,17 +344,33 @@
         const list = document.getElementById('recipe-list');
         list.innerHTML = '';
         let recipes = db.recipes.map(r => {
-            let ok=0, req=0;
-            r.ingredients.forEach(ri => { if(ri.req) { req++; if((db.inventory[ri.id]||0)>0) ok++; } });
-            return {...r, cookable: (req>0 && req===ok) || req===0};
-        }).sort((a,b) => b.cookable - a.cookable);
+            let status = 'cookable';
+            let isWarning = false;
+            let isMissing = false;
+            r.ingredients.forEach(ri => {
+                if(ri.req) {
+                    const stock = db.inventory[ri.id] || 0;
+                    if (stock === 0) isMissing = true;
+                    else if (stock < ri.minQty) isWarning = true;
+                }
+            });
+            if (isMissing) status = 'missing';
+            else if (isWarning) status = 'warning';
+            return {...r, status};
+        });
+
+        recipes.sort((a,b) => {
+            const order = {'cookable': 0, 'warning': 1, 'missing': 2};
+            return order[a.status] - order[b.status];
+        });
         
         recipes.forEach(r => {
-            if(filterActive && !r.cookable) return;
+            if(filterActive && r.status === 'missing') return;
             const icon = r.ingredients.slice(0,2).map(ri=>getIng(ri.id).emoji).join('') || '🍲';
             const tags = r.tagIds.map(tid=>`<span class="tag" style="background:#f1f5f9">${getRTag(tid).name}</span>`).join('');
+            const cardClass = r.status === 'cookable' ? 'cookable' : (r.status === 'warning' ? 'warning' : '');
             list.innerHTML += `
-                <div class="recipe-card ${r.cookable?'cookable':''}" onclick="openRView('${r.id}')">
+                <div class="recipe-card ${cardClass}" onclick="openRView('${r.id}')">
                     <div class="rc-head"><div class="rc-icon">${icon}</div><div style="flex:1"><div style="font-weight:700">${r.name}</div><div style="display:flex;gap:4px">${tags}</div></div></div>
                 </div>`;
         });
@@ -366,12 +383,23 @@
         document.getElementById('v-r-title').innerText = r.name;
         document.getElementById('v-r-desc').innerHTML = marked.parse(r.desc);
         document.getElementById('v-r-tags').innerHTML = r.tagIds.map(tid=>`<span class="tag" style="background:${getRTag(tid).color}20; color:${getRTag(tid).color}">${getRTag(tid).name}</span>`).join('');
+        
         document.getElementById('v-r-ings').innerHTML = r.ingredients.map(ri=>{
             const i = getIng(ri.id);
             if(i.isDeleted) return `<span class="tag" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca">🚫 未知/已删</span>`;
-            const has = (db.inventory[i.id]||0)>0;
-            const bg = has ? 'var(--success)' : (ri.req ? '#fee2e2' : '#f8fafc');
-            return `<span class="tag" style="background:${bg}; color:#333; padding:5px 8px; border:1px solid #ddd">${i.emoji} ${i.name}</span>`;
+            
+            const stock = db.inventory[i.id] || 0;
+            let bg = '#f8fafc', border = '#ddd';
+            let label = `${i.emoji} ${i.name} (需 ${ri.minQty}${i.unit})`;
+
+            if (ri.req) {
+                if (stock >= ri.minQty) { bg = 'var(--success)'; border = 'var(--success)'; label += ' ✅'; }
+                else if (stock > 0) { bg = 'var(--warning)'; border = 'var(--warning)'; label += ' ⚠️'; }
+                else { bg = '#fee2e2'; border = '#fecaca'; label += ' ❌'; }
+            } else {
+                if (stock >= ri.minQty) { bg = '#d1fae5'; label += ' ✅'; }
+            }
+            return `<span class="tag" style="background:${bg}; color:#333; padding:5px 8px; border:1px solid ${border}">${label}</span>`;
         }).join('');
         document.getElementById('modal-r-view').classList.add('open');
     }
@@ -388,32 +416,59 @@
         editIngs = {};
         db.ingredients.forEach(i => {
             const ex = r.ingredients.find(ri=>ri.id===i.id);
-            editIngs[i.id] = { sel: !!ex, req: ex?ex.req:true };
+            editIngs[i.id] = { sel: !!ex, req: ex?ex.req:true, minQty: ex?ex.minQty:1 };
         });
         renderEditSelectors();
         document.getElementById('modal-r-edit').classList.add('open');
     }
 
+    // FIXED: Separate functions for precise interaction
     function renderEditSelectors() {
         document.getElementById('e-r-tag-grid').innerHTML = db.recipeTags.map(t => 
             `<div class="sel-card ${editTags.has(t.id)?'selected':''}" onclick="toggleTag('${t.id}')">${t.name}</div>`
         ).join('');
+        
         const sorted = [...db.ingredients].sort((a,b)=>a.catId.localeCompare(b.catId));
         document.getElementById('e-r-ing-grid').innerHTML = sorted.map(i => {
-            const s = editIngs[i.id];
-            return `<div class="sel-card ${s.sel?'selected':''}" onclick="if(!event.target.classList.contains('req-btn')) {editIngs['${i.id}'].sel=!s.sel; renderEditSelectors();}">
+            const s = editIngs[i.id] || {sel:false, req:true, minQty:1};
+            return `<div class="sel-card ${s.sel?'selected':''}" onclick="toggleIngSel('${i.id}')">
                 <div style="font-size:1.4rem">${i.emoji}</div><div style="font-size:0.8rem">${i.name}</div>
-                ${s.sel ? `<button class="req-btn ${s.req?'is-req':'is-opt'}" onclick="editIngs['${i.id}'].req=!s.req; renderEditSelectors()">${s.req?'必须':'可选'}</button>` : ''}
+                ${s.sel ? `
+                    <div style="display:flex; align-items:center; gap:5px; margin-top:5px;">
+                        <input type="number" min="1" value="${s.minQty}" onclick="event.stopPropagation()" onchange="updateMinQty('${i.id}', this.value)" style="width:40px; padding:2px; font-size:0.8rem; text-align:center;">
+                        <span style="font-size:0.7rem">${i.unit}</span>
+                    </div>
+                    <button class="req-btn ${s.req?'is-req':'is-opt'}" onclick="toggleReq(event, '${i.id}')">${s.req?'必须':'可选'}</button>
+                ` : ''}
             </div>`;
         }).join('');
     }
 
     function toggleTag(id) { if(editTags.has(id)) editTags.delete(id); else editTags.add(id); renderEditSelectors(); }
+    
+    function toggleIngSel(id) {
+        if(!editIngs[id]) editIngs[id] = {sel:false, req:true, minQty:1};
+        editIngs[id].sel = !editIngs[id].sel;
+        renderEditSelectors();
+    }
+    
+    function updateMinQty(id, val) {
+        if(!editIngs[id]) return;
+        editIngs[id].minQty = parseInt(val) || 1;
+    }
+    
+    function toggleReq(e, id) {
+        e.stopPropagation(); // Stop bubbling to card
+        if(!editIngs[id]) return;
+        editIngs[id].req = !editIngs[id].req;
+        renderEditSelectors();
+    }
+
     function saveRecipe() {
         const name = document.getElementById('e-r-name').value;
         if(!name) return alert('请填名称');
         const ings = [];
-        Object.keys(editIngs).forEach(k => { if(editIngs[k].sel) ings.push({id:k, req:editIngs[k].req}); });
+        Object.keys(editIngs).forEach(k => { if(editIngs[k].sel) ings.push({id:k, req:editIngs[k].req, minQty:editIngs[k].minQty}); });
         apiPost('/api/recipe/save', {
             id: document.getElementById('e-r-id').value, name, desc: document.getElementById('e-r-desc').value,
             tagIds: Array.from(editTags), ingredients: ings
@@ -423,15 +478,14 @@
         if(confirm('删除?')) apiPost('/api/recipe/delete', {id: document.getElementById('e-r-id').value}).then(()=>closeModal('modal-r-edit'));
     }
 
-    // Meta Manager
     function openArchive() { document.getElementById('modal-archive').classList.add('open'); switchTab('ing'); }
     function switchTab(t) {
         document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
         document.getElementById('tab-'+t).classList.add('active');
-        ['ing','cat','rtag'].forEach(x => {
+        ['ing','cat','rtag','about'].forEach(x => {
             document.getElementById('view-'+x).style.display = x===t?'block':'none';
         });
-        renderMetaList(t);
+        if (t !== 'about') renderMetaList(t);
     }
     
     function renderMetaList(type) {

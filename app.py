@@ -21,9 +21,12 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-def init_db():
+# --- 数据库初始化与迁移 ---
+def check_and_migrate_db():
+    """每次启动时检查数据库结构，自动修复旧版数据库"""
     with app.app_context():
         db = get_db()
+        # 1. 确保表存在
         db.executescript('''
             CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT, color TEXT);
             CREATE TABLE IF NOT EXISTS recipe_tags (id TEXT PRIMARY KEY, name TEXT, color TEXT);
@@ -33,6 +36,20 @@ def init_db():
             CREATE TABLE IF NOT EXISTS recipe_tag_link (recipe_id TEXT, tag_id TEXT);
             CREATE TABLE IF NOT EXISTS recipe_ings (recipe_id TEXT, ing_id TEXT, req INTEGER);
         ''')
+        
+        # 2. 检查并迁移 min_qty 字段 (v10新增)
+        try:
+            # 尝试查询该字段，如果报错说明不存在
+            db.execute("SELECT min_qty FROM recipe_ings LIMIT 1")
+        except sqlite3.OperationalError:
+            print("正在升级数据库：添加 min_qty 字段...")
+            try:
+                db.execute("ALTER TABLE recipe_ings ADD COLUMN min_qty INTEGER DEFAULT 1")
+                db.commit()
+            except Exception as e:
+                print(f"数据库升级警告: {e}")
+
+        # 3. 插入默认数据 (仅当分类为空时)
         cur = db.cursor()
         if cur.execute('SELECT count(*) FROM categories').fetchone()[0] == 0:
             cats = [('c1', '青菜', '#10b981'), ('c2', '肉蛋', '#ef4444'), ('c3', '调料', '#f59e0b'), ('c4', '饮品', '#3b82f6')]
@@ -66,8 +83,17 @@ def get_all_data():
             r = dict(r_row)
             t_rows = db.execute('SELECT tag_id FROM recipe_tag_link WHERE recipe_id = ?', (r['id'],))
             r['tagIds'] = [row['tag_id'] for row in t_rows]
-            i_rows = db.execute('SELECT ing_id as id, req FROM recipe_ings WHERE recipe_id = ?', (r['id'],))
-            r['ingredients'] = [{'id': row['id'], 'req': bool(row['req'])} for row in i_rows]
+            
+            # 获取关联食材
+            # 注意：如果数据库刚迁移，min_qty 可能是 NULL，这里要做处理
+            i_rows = db.execute('SELECT ing_id as id, req, min_qty FROM recipe_ings WHERE recipe_id = ?', (r['id'],))
+            r['ingredients'] = []
+            for row in i_rows:
+                r['ingredients'].append({
+                    'id': row['id'], 
+                    'req': bool(row['req']),
+                    'minQty': row['min_qty'] if row['min_qty'] is not None else 1
+                })
             recipes.append(r)
             
         return jsonify({
@@ -75,6 +101,7 @@ def get_all_data():
             'inventory': inventory, 'recipes': recipes
         })
     except Exception as e:
+        print(f"API Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/inventory/update', methods=['POST'])
@@ -90,12 +117,15 @@ def save_recipe():
     r = request.json
     db = get_db()
     db.execute('INSERT OR REPLACE INTO recipes (id, name, desc) VALUES (?, ?, ?)', (r['id'], r['name'], r['desc']))
+    
     db.execute('DELETE FROM recipe_tag_link WHERE recipe_id = ?', (r['id'],))
     if r['tagIds']:
         db.executemany('INSERT INTO recipe_tag_link VALUES (?, ?)', [(r['id'], tid) for tid in r['tagIds']])
+        
     db.execute('DELETE FROM recipe_ings WHERE recipe_id = ?', (r['id'],))
     if r['ingredients']:
-        db.executemany('INSERT INTO recipe_ings VALUES (?, ?, ?)', [(r['id'], item['id'], 1 if item['req'] else 0) for item in r['ingredients']])
+        db.executemany('INSERT INTO recipe_ings (recipe_id, ing_id, req, min_qty) VALUES (?, ?, ?, ?)', 
+                       [(r['id'], item['id'], 1 if item['req'] else 0, item['minQty']) for item in r['ingredients']])
     db.commit()
     return jsonify({'status': 'ok'})
 
@@ -152,6 +182,7 @@ def delete_meta_item():
     return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
-    if not os.path.exists(DATABASE):
-        init_db()
+    # 每次启动都检查数据库
+    check_and_migrate_db()
+    print("Database ready.")
     app.run(host='0.0.0.0', port=5000, debug=True)
