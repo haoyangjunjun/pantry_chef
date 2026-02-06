@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+import datetime
 from flask import Flask, render_template, request, jsonify, g
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -21,12 +22,9 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-# --- 数据库初始化与迁移 ---
 def check_and_migrate_db():
-    """每次启动时检查数据库结构，自动修复旧版数据库"""
     with app.app_context():
         db = get_db()
-        # 1. 确保表存在
         db.executescript('''
             CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT, color TEXT);
             CREATE TABLE IF NOT EXISTS recipe_tags (id TEXT PRIMARY KEY, name TEXT, color TEXT);
@@ -35,22 +33,26 @@ def check_and_migrate_db():
             CREATE TABLE IF NOT EXISTS recipes (id TEXT PRIMARY KEY, name TEXT, desc TEXT);
             CREATE TABLE IF NOT EXISTS recipe_tag_link (recipe_id TEXT, tag_id TEXT);
             CREATE TABLE IF NOT EXISTS recipe_ings (recipe_id TEXT, ing_id TEXT, req INTEGER);
+            CREATE TABLE IF NOT EXISTS memo (id INTEGER PRIMARY KEY, content TEXT, updated_at TEXT);
         ''')
         
-        # 2. 检查并迁移 min_qty 字段 (v10新增)
+        # 检查 min_qty 字段
         try:
-            # 尝试查询该字段，如果报错说明不存在
             db.execute("SELECT min_qty FROM recipe_ings LIMIT 1")
         except sqlite3.OperationalError:
-            print("正在升级数据库：添加 min_qty 字段...")
             try:
                 db.execute("ALTER TABLE recipe_ings ADD COLUMN min_qty INTEGER DEFAULT 1")
                 db.commit()
-            except Exception as e:
-                print(f"数据库升级警告: {e}")
+            except: pass
 
-        # 3. 插入默认数据 (仅当分类为空时)
+        # 初始化留言板 (如果为空)
         cur = db.cursor()
+        if cur.execute('SELECT count(*) FROM memo').fetchone()[0] == 0:
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            cur.execute('INSERT INTO memo VALUES (1, ?, ?)', ("欢迎使用家庭留言板！\n例如：\n- 记得买葱\n- 今晚不回家吃饭", now_str))
+            db.commit()
+
+        # 初始化分类 (如果为空)
         if cur.execute('SELECT count(*) FROM categories').fetchone()[0] == 0:
             cats = [('c1', '青菜', '#10b981'), ('c2', '肉蛋', '#ef4444'), ('c3', '调料', '#f59e0b'), ('c4', '饮品', '#3b82f6')]
             cur.executemany('INSERT INTO categories VALUES (?,?,?)', cats)
@@ -62,6 +64,7 @@ def check_and_migrate_db():
 def index():
     return render_template('index.html')
 
+# --- 常规数据接口 ---
 @app.route('/api/data', methods=['GET'])
 def get_all_data():
     db = get_db()
@@ -83,9 +86,6 @@ def get_all_data():
             r = dict(r_row)
             t_rows = db.execute('SELECT tag_id FROM recipe_tag_link WHERE recipe_id = ?', (r['id'],))
             r['tagIds'] = [row['tag_id'] for row in t_rows]
-            
-            # 获取关联食材
-            # 注意：如果数据库刚迁移，min_qty 可能是 NULL，这里要做处理
             i_rows = db.execute('SELECT ing_id as id, req, min_qty FROM recipe_ings WHERE recipe_id = ?', (r['id'],))
             r['ingredients'] = []
             for row in i_rows:
@@ -101,9 +101,25 @@ def get_all_data():
             'inventory': inventory, 'recipes': recipes
         })
     except Exception as e:
-        print(f"API Error: {e}")
         return jsonify({'error': str(e)}), 500
 
+# --- 留言板接口 ---
+@app.route('/api/memo', methods=['GET'])
+def get_memo():
+    db = get_db()
+    row = db.execute('SELECT * FROM memo WHERE id=1').fetchone()
+    return jsonify(dict(row))
+
+@app.route('/api/memo', methods=['POST'])
+def save_memo():
+    content = request.json.get('content', '')
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    db = get_db()
+    db.execute('UPDATE memo SET content=?, updated_at=? WHERE id=1', (content, now_str))
+    db.commit()
+    return jsonify({'status': 'ok', 'time': now_str})
+
+# --- 其他写操作 ---
 @app.route('/api/inventory/update', methods=['POST'])
 def update_inventory():
     data = request.json
@@ -117,11 +133,9 @@ def save_recipe():
     r = request.json
     db = get_db()
     db.execute('INSERT OR REPLACE INTO recipes (id, name, desc) VALUES (?, ?, ?)', (r['id'], r['name'], r['desc']))
-    
     db.execute('DELETE FROM recipe_tag_link WHERE recipe_id = ?', (r['id'],))
     if r['tagIds']:
         db.executemany('INSERT INTO recipe_tag_link VALUES (?, ?)', [(r['id'], tid) for tid in r['tagIds']])
-        
     db.execute('DELETE FROM recipe_ings WHERE recipe_id = ?', (r['id'],))
     if r['ingredients']:
         db.executemany('INSERT INTO recipe_ings (recipe_id, ing_id, req, min_qty) VALUES (?, ?, ?, ?)', 
@@ -152,13 +166,10 @@ def save_meta_item():
                    (id_, data['name'], data['emoji'], data['unit'], data['catId']))
         if mode == 'add':
             db.execute('INSERT OR IGNORE INTO inventory (ing_id, qty) VALUES (?, 0)', (id_,))
-            
     elif type_ == 'category':
         db.execute('INSERT OR REPLACE INTO categories (id, name, color) VALUES (?,?,?)', (id_, data['name'], data['color']))
-        
     elif type_ == 'recipeTag':
         db.execute('INSERT OR REPLACE INTO recipe_tags (id, name, color) VALUES (?,?,?)', (id_, data['name'], data['color']))
-        
     db.commit()
     return jsonify({'status': 'ok'})
 
@@ -168,7 +179,6 @@ def delete_meta_item():
     t = data['type']
     id_ = data['id']
     db = get_db()
-    
     if t == 'ingredient':
         db.execute('DELETE FROM ingredients WHERE id = ?', (id_,))
         db.execute('DELETE FROM inventory WHERE ing_id = ?', (id_,))
@@ -177,12 +187,9 @@ def delete_meta_item():
     elif t == 'recipeTag':
         db.execute('DELETE FROM recipe_tags WHERE id = ?', (id_,))
         db.execute('DELETE FROM recipe_tag_link WHERE tag_id = ?', (id_,))
-        
     db.commit()
     return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
-    # 每次启动都检查数据库
     check_and_migrate_db()
-    print("Database ready.")
     app.run(host='0.0.0.0', port=5000, debug=True)
